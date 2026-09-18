@@ -146,11 +146,11 @@ function paintPreview(){
   if(nick){im.src=helmURL(nick);im.style.display='block'}else im.style.display='none';
 }
 ["eTitle","eDesc","eFoot","eColor"].forEach(id=>document.getElementById(id).addEventListener('input',paintPreview));
-function fallback2D(){
+function fallback2D(reason){
   const fb=document.getElementById('fallback');
   fb.style.display='flex';
   fb.innerHTML=`<img src="https://minotar.net/helm/${encodeURIComponent(nick)}/100.png" width="100" height="100" alt="cabeza"><img src="https://minotar.net/body/${encodeURIComponent(nick)}/100.png" height="100" alt="cuerpo">`;
-  document.getElementById('pInfo').textContent="Vista 2D (el 3D no cargó). Igual de fachero. 😎";
+  document.getElementById('pInfo').textContent="Vista 2D ("+(reason||"el 3D no cargó")+"). Igual de fachero. 😎";
 }
 function testImg(u){return new Promise(function(res,rej){const im=new Image();im.crossOrigin='anonymous';im.onload=function(){res(u)};im.onerror=rej;im.src=u})}
 async function findSkin(uuid){
@@ -171,10 +171,8 @@ async function summon(){
   if(!uuid){info.textContent="Ese nick no existe en Mojang. Revisa mayúsculas.";fallback2D();applyTpl();return}
   info.textContent="UUID hallado. Cargando skin 3D… ⏳";
   const skinURL=await findSkin(uuid);
-  if(!skinURL||!window.skinview3d){
-    info.textContent=!window.skinview3d?"Librería 3D bloqueada (revisa tu AdBlock). Mostrando 2D.":"No se pudo descargar la skin. Mostrando 2D.";
-    fallback2D();applyTpl();return;
-  }
+  if(!window.skinview3d){fallback2D("librería 3D bloqueada, revisa tu AdBlock");applyTpl();return}
+  if(!skinURL){fallback2D("no se pudo descargar la skin (prueba con otro nick)");applyTpl();return}
   try{
     const stage=document.getElementById('stage');
     stage.innerHTML='';
@@ -185,7 +183,7 @@ async function summon(){
     viewer.autoRotate=spinning;viewer.autoRotateSpeed=1.2;
     viewer.animation=new skinview3d.WalkingAnimation();viewer.animation.speed=0.6;
     info.textContent="Arrastra para girar · scroll para zoom. UUID: "+uuid;
-  }catch(e){info.textContent="El 3D falló en tu navegador. Mostrando 2D.";fallback2D()}
+  }catch(e){console.error("SkinViewer:",e);fallback2D("error 3D: "+(e&&e.message?e.message:e))}
   applyTpl();
 }
 document.getElementById('go').addEventListener('click',summon);
