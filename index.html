@@ -158,16 +158,24 @@ async function findSkin(uuid){
   for(const u of urls){try{return await testImg(u)}catch(e){}}
   return null;
 }
+async function resolveUUID(nick){
+  try{
+    const r=await fetch("https://playerdb.co/api/player/minecraft/"+encodeURIComponent(nick));
+    if(r.ok){const j=await r.json();const id=j&&j.data&&j.data.player&&j.data.player.id;if(id)return String(id).replace(/-/g,"")}
+  }catch(e){}
+  try{
+    const r=await fetch("https://api.minetools.eu/uuid/"+encodeURIComponent(nick));
+    if(r.ok){const j=await r.json();if(j&&j.id)return String(j.id).replace(/-/g,"")}
+  }catch(e){}
+  return null;
+}
 async function summon(){
   const v=document.getElementById('nick').value.trim();
   if(!/^[A-Za-z0-9_]{3,16}$/.test(v)){alert("Nick inválido (3-16: letras, números, _).");return}
   nick=v;uuid=null;
   const info=document.getElementById('pInfo');
   info.textContent="Invocando a "+nick+"… ⏳";
-  try{
-    const r=await fetch("https://api.mojang.com/users/profiles/minecraft/"+encodeURIComponent(nick));
-    if(r.ok){uuid=(await r.json()).id}
-  }catch(e){}
+  uuid=await resolveUUID(nick);
   if(!uuid){info.textContent="Ese nick no existe en Mojang. Revisa mayúsculas.";fallback2D();applyTpl();return}
   info.textContent="UUID hallado. Cargando skin 3D… ⏳";
   const skinURL=await findSkin(uuid);
