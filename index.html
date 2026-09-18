@@ -152,29 +152,40 @@ function fallback2D(){
   fb.innerHTML=`<img src="https://minotar.net/helm/${encodeURIComponent(nick)}/100.png" width="100" height="100" alt="cabeza"><img src="https://minotar.net/body/${encodeURIComponent(nick)}/100.png" height="100" alt="cuerpo">`;
   document.getElementById('pInfo').textContent="Vista 2D (el 3D no cargó). Igual de fachero. 😎";
 }
+function testImg(u){return new Promise(function(res,rej){const im=new Image();im.crossOrigin='anonymous';im.onload=function(){res(u)};im.onerror=rej;im.src=u})}
+async function findSkin(uuid){
+  const urls=["https://visage.surgeplay.com/skin/512/"+uuid,"https://crafatar.com/skins/"+uuid];
+  for(const u of urls){try{return await testImg(u)}catch(e){}}
+  return null;
+}
 async function summon(){
   const v=document.getElementById('nick').value.trim();
   if(!/^[A-Za-z0-9_]{3,16}$/.test(v)){alert("Nick inválido (3-16: letras, números, _).");return}
   nick=v;uuid=null;
-  document.getElementById('pInfo').textContent="Invocando a "+nick+"… ⏳";
+  const info=document.getElementById('pInfo');
+  info.textContent="Invocando a "+nick+"… ⏳";
   try{
     const r=await fetch("https://api.mojang.com/users/profiles/minecraft/"+encodeURIComponent(nick));
     if(r.ok){uuid=(await r.json()).id}
   }catch(e){}
-  document.getElementById('pInfo').textContent=uuid?("UUID: "+uuid):"Sin UUID (nick premium no encontrado), igual lo muestro en 2D.";
-  if(!uuid){fallback2D();applyTpl();return}
+  if(!uuid){info.textContent="Ese nick no existe en Mojang. Revisa mayúsculas.";fallback2D();applyTpl();return}
+  info.textContent="UUID hallado. Cargando skin 3D… ⏳";
+  const skinURL=await findSkin(uuid);
+  if(!skinURL||!window.skinview3d){
+    info.textContent=!window.skinview3d?"Librería 3D bloqueada (revisa tu AdBlock). Mostrando 2D.":"No se pudo descargar la skin. Mostrando 2D.";
+    fallback2D();applyTpl();return;
+  }
   try{
-    if(!window.skinview3d)throw 0;
     const stage=document.getElementById('stage');
     stage.innerHTML='';
     const canvas=document.createElement('canvas');
     stage.appendChild(canvas);
-    viewer=new skinview3d.SkinViewer({canvas,width:300,height:340,skin:"https://crafatar.com/skins/"+uuid});
-    viewer.controls.enableRotate=true;viewer.controls.enableZoom=true;
+    viewer=new skinview3d.SkinViewer({canvas,width:300,height:340,skin:skinURL,model:"auto-detect"});
+    if(viewer.controls){viewer.controls.enableRotate=true;viewer.controls.enableZoom=true}
     viewer.autoRotate=spinning;viewer.autoRotateSpeed=1.2;
     viewer.animation=new skinview3d.WalkingAnimation();viewer.animation.speed=0.6;
-    document.getElementById('pInfo').textContent="Arrastra para girar · scroll para zoom. UUID: "+uuid;
-  }catch(e){fallback2D()}
+    info.textContent="Arrastra para girar · scroll para zoom. UUID: "+uuid;
+  }catch(e){info.textContent="El 3D falló en tu navegador. Mostrando 2D.";fallback2D()}
   applyTpl();
 }
 document.getElementById('go').addEventListener('click',summon);
